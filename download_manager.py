@@ -394,10 +394,10 @@ class DownloadManager:
         for i, selector in enumerate(button_selectors, 1):
             buttons = self.browser.find_elements(By.XPATH, selector)
             if buttons:
-                self.logger.log_button_detection(1, True, f"Selector: {selector}")
+                self.logger.log_button_detection(i, True, f"Selector: {selector}")
                 return buttons[0]
             else:
-                self.logger.log_button_detection(1, False)
+                self.logger.log_button_detection(i, False)
         
         # Strategy 2: Look for buttons containing "download" (case insensitive)
         download_buttons = self.browser.find_elements(By.XPATH, 
