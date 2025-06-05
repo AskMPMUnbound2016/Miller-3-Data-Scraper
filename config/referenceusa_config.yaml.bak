@@ -1,0 +1,14 @@
+auth_url: http://referenceusa.com.us1.proxy.openathens.net/UsBusiness/Search/Quick/497be73bf9a94fe3aebb7eb4857b584f
+download_dir: /Users/admin/Desktop/DataAxleScraper/downloads
+library_credentials:
+  Cobb County Library:
+    password: '3353'
+    username: '202124402'
+pages_per_batch: 10
+pages_to_download: all
+search_parameters:
+  geography_type: state
+  include_closed: false
+  include_unverified: true
+  state: New Mexico
+state_file: /Users/admin/Desktop/DataAxleScraper/config/reference_usa_state.json

@@ -1,0 +1,349 @@
+import time
+import random
+from selenium.webdriver.common.by import By
+
+class LoginManager:
+    def __init__(self, browser_manager, auth_url, credentials):
+        self.browser = browser_manager
+        self.auth_url = auth_url
+        self.credentials = credentials
+    
+    def login(self):
+        """Handle the login process for ReferenceUSA"""
+        try:
+            # Store the original window handle
+            original_handle = self.browser.get_current_window_handle()
+            print("Navigating to authentication page...")
+            self.browser.navigate(self.auth_url)
+            
+            # Handle any security challenges
+            self.browser.handle_security_challenge()
+            
+            # Check if authentication happens in a new tab
+            if len(self.browser.get_window_handles()) > 1:
+                print("Detected multiple tabs opened. Switching to authentication tab...")
+                self.browser.switch_to_new_tab(original_handle)
+            
+            # Try to find login form
+            print("Looking for login form...")
+            
+            # Get all input fields on the page
+            input_fields = self.browser.find_elements(By.TAG_NAME, "input")
+            username_field = None
+            password_field = None
+            
+            # Identify username and password fields
+            for field in input_fields:
+                field_type = field.get_attribute("type")
+                field_id = (field.get_attribute("id") or "").lower()
+                field_name = (field.get_attribute("name") or "").lower()
+                
+                if field_type == "text" or field_type == "email":
+                    if any(term in field_id or term in field_name for term in ["user", "login", "barcode", "card", "email", "name"]):
+                        username_field = field
+                
+                if field_type == "password":
+                    password_field = field
+            
+            # If we found login fields, use them
+            if username_field and password_field:
+                # Use first credential set from config
+                credential_key = list(self.credentials.keys())[0]
+                credentials = self.credentials[credential_key]
+                
+                print(f"Using credentials for: {credential_key}")
+                
+                # Enter credentials
+                username_field.clear()
+                username_field.send_keys(credentials["username"])
+                time.sleep(random.uniform(0.5, 1.5))
+                
+                password_field.clear()
+                password_field.send_keys(credentials["password"])
+                time.sleep(random.uniform(0.5, 1.5))
+                
+                # Find and click submit button
+                submit_buttons = self.browser.find_elements(By.XPATH, 
+                    "//button[@type='submit'] | //input[@type='submit'] | //button[contains(text(), 'Login') or contains(text(), 'Sign')]") 
+                
+                if submit_buttons:
+                    # Before clicking, check current window handles to detect new tabs
+                    before_handles = set(self.browser.get_window_handles())
+                    
+                    submit_buttons[0].click()
+                    print("Login form submitted")
+                    time.sleep(random.uniform(5, 8))
+                    
+                    # Check if a new tab was opened
+                    after_handles = set(self.browser.get_window_handles())
+                    new_handles = after_handles - before_handles
+                    
+                    if new_handles:
+                        # Switch to the new tab
+                        print("New tab detected after login submission. Switching to it...")
+                        new_handle = list(new_handles)[0]
+                        self.browser.switch_to_window(new_handle)
+                else:
+                    print("No submit button found. Please press Enter after manual login.")
+                    input()
+            else:
+                print("Login form not automatically detected.")
+                print("Please login manually and press Enter when done.")
+                input()
+            
+            # Wait for authentication to complete in any tab
+            if self.browser.wait_for_authentication():
+                print("Authentication completed successfully")
+            else:
+                print("Authentication process unclear. Proceeding with caution.")
+            
+            # Handle redirects until we reach ReferenceUSA
+            self._handle_redirects()
+            
+            # Final check - are we on ReferenceUSA or a proxy to it?
+            current_url = self.browser.driver.current_url.lower()
+            reference_indicators = ["referenceusa.com", "proxy.openathens.net", "usbusiness", "data-axle"]
+            
+            if any(indicator in current_url for indicator in reference_indicators):
+                print("Successfully reached ReferenceUSA or proxy!")
+                print(f"Current URL: {current_url}")
+                
+                # Take a screenshot to help debug
+                try:
+                    screenshot_path = "successful_login_screenshot.png"
+                    self.browser.driver.save_screenshot(screenshot_path)
+                    print(f"Saved login screenshot to {screenshot_path}")
+                except Exception as e:
+                    print(f"Failed to save screenshot: {str(e)}")
+                
+                return True
+            else:
+                print("Warning: Not on ReferenceUSA website. Current URL:", current_url)
+                print("Please check the URL and ensure you're on ReferenceUSA or its proxy before continuing.")
+                
+                # Check the page title as another indicator
+                page_title = self.browser.driver.title.lower()
+                print(f"Current page title: {self.browser.driver.title}")
+                
+                title_indicators = ["u.s. businesses", "business", "database", "reference", "data-axle"]
+                if any(indicator in page_title for indicator in title_indicators):
+                    print("Page title suggests we are on ReferenceUSA/Data-Axle. Continuing...")
+                    return True
+                
+                choice = input("Continue anyway? (y/n): ").lower().strip()
+                if choice == 'y' or choice == 'yes' or choice == '':
+                    return True
+                else:
+                    print("Aborting. Please navigate to ReferenceUSA manually.")
+                    return False
+                
+        except Exception as e:
+            print(f"Authentication failed: {str(e)}")
+            print("Please try to login manually.")
+            input("Press Enter after logging in...")
+            
+            # Even after error, check if we ended up on a ReferenceUSA page
+            current_url = self.browser.driver.current_url.lower()
+            reference_indicators = ["referenceusa.com", "proxy.openathens.net", "usbusiness", "data-axle"]
+            
+            return any(indicator in current_url for indicator in reference_indicators)
+    
+    def _handle_redirects(self):
+        """Handle redirects after login until we reach ReferenceUSA"""
+        max_redirects = 10
+        redirects = 0
+        
+        # Check all browser tabs for ReferenceUSA
+        all_handles = self.browser.get_window_handles()
+        reference_url_found = False
+        
+        # Reference indicators in URL or title
+        reference_indicators = ["referenceusa.com", "proxy.openathens.net", "usbusiness", "data-axle"]
+        
+        print("Checking all open tabs for ReferenceUSA or proxies...")
+        for handle in all_handles:
+            try:
+                self.browser.switch_to_window(handle)
+                current_url = self.browser.driver.current_url.lower()
+                page_title = self.browser.driver.title.lower()
+                
+                print(f"Checking tab with URL: {current_url}")
+                print(f"Tab title: {self.browser.driver.title}")
+                
+                # Check URL for reference indicators
+                if any(indicator in current_url for indicator in reference_indicators):
+                    print(f"Found ReferenceUSA indicator in URL: {current_url}")
+                    reference_url_found = True
+                    break
+                
+                # Check title for reference indicators
+                title_indicators = ["u.s. businesses", "business", "database", "reference", "data-axle"]
+                if any(indicator in page_title for indicator in title_indicators):
+                    print(f"Found ReferenceUSA indicator in title: {page_title}")
+                    reference_url_found = True
+                    break
+                    
+            except Exception as e:
+                print(f"Error checking tab: {str(e)}")
+        
+        # If we found ReferenceUSA in a tab, we're done
+        if reference_url_found:
+            return
+        
+        # Otherwise, proceed with redirect handling
+        while redirects < max_redirects and not any(indicator in self.browser.driver.current_url.lower() for indicator in reference_indicators):
+            redirects += 1
+            print(f"Handling redirect {redirects}/{max_redirects}...")
+            print(f"Current URL: {self.browser.driver.current_url}")
+            
+            # Check for security challenges
+            if self.browser.handle_security_challenge():
+                continue
+            
+            # Check if a new tab was opened
+            current_handles = self.browser.get_window_handles()
+            if len(current_handles) > 1 and len(current_handles) > len(all_handles):
+                print("New tab detected during redirect. Switching to it...")
+                for handle in current_handles:
+                    if handle not in all_handles:
+                        self.browser.switch_to_window(handle)
+                        all_handles = current_handles
+                        break
+            
+            # Try to find and click ReferenceUSA link
+            reference_links = self.browser.find_elements(By.XPATH, 
+                "//a[contains(text(), 'ReferenceUSA') or contains(text(), 'Reference USA') or contains(text(), 'Data-Axle') or contains(@href, 'referenceusa') or contains(@href, 'data-axle')]") 
+            
+            if reference_links:
+                print("Found ReferenceUSA link, clicking...")
+                before_handles = set(self.browser.get_window_handles())
+                reference_links[0].click()
+                time.sleep(random.uniform(4, 6))
+                
+                # Check if a new tab was opened
+                after_handles = set(self.browser.get_window_handles())
+                new_handles = after_handles - before_handles
+                if new_handles:
+                    print("New tab opened after clicking ReferenceUSA link. Switching to it...")
+                    self.browser.switch_to_window(list(new_handles)[0])
+                    all_handles = list(after_handles)
+                continue
+            
+            # Look for any continue buttons or accept terms buttons
+            continue_buttons = self.browser.find_elements(By.XPATH,
+                "//button[contains(text(), 'Continue') or contains(text(), 'Accept') or contains(text(), 'Agree') or contains(text(), 'Proceed')]") 
+            
+            if continue_buttons:
+                print("Clicking continue/accept button...")
+                before_handles = set(self.browser.get_window_handles())
+                continue_buttons[0].click()
+                time.sleep(random.uniform(3, 5))
+                
+                # Check if a new tab was opened
+                after_handles = set(self.browser.get_window_handles())
+                new_handles = after_handles - before_handles
+                if new_handles:
+                    print("New tab opened after clicking button. Switching to it...")
+                    self.browser.switch_to_window(list(new_handles)[0])
+                    all_handles = list(after_handles)
+                continue
+            
+            # Look for any database selection links (common in library portals)
+            database_links = self.browser.find_elements(By.XPATH,
+                "//a[contains(text(), 'Business') or contains(text(), 'Database') or contains(text(), 'Reference') or contains(text(), 'Resources')]")
+            
+            if database_links:
+                print("Found possible database link, clicking...")
+                before_handles = set(self.browser.get_window_handles())
+                database_links[0].click()
+                time.sleep(random.uniform(3, 5))
+                
+                # Check if a new tab was opened
+                after_handles = set(self.browser.get_window_handles())
+                new_handles = after_handles - before_handles
+                if new_handles:
+                    print("New tab opened after clicking database link. Switching to it...")
+                    self.browser.switch_to_window(list(new_handles)[0])
+                    all_handles = list(after_handles)
+                continue
+            
+            # Look for elements with 'business' in the text (common in library database lists)
+            business_elements = self.browser.find_elements(By.XPATH,
+                "//*[contains(text(), 'Business') or contains(text(), 'business') or contains(text(), 'Data-Axle') or contains(text(), 'ReferenceUSA')]")
+            
+            if business_elements:
+                for element in business_elements:
+                    try:
+                        print(f"Found business-related element: {element.text}. Attempting to click...")
+                        before_handles = set(self.browser.get_window_handles())
+                        element.click()
+                        time.sleep(random.uniform(3, 5))
+                        
+                        # Check if a new tab was opened
+                        after_handles = set(self.browser.get_window_handles())
+                        new_handles = after_handles - before_handles
+                        if new_handles:
+                            print("New tab opened after clicking element. Switching to it...")
+                            self.browser.switch_to_window(list(new_handles)[0])
+                            all_handles = list(after_handles)
+                        
+                        # Check if we've reached a ReferenceUSA page
+                        if any(indicator in self.browser.driver.current_url.lower() for indicator in reference_indicators):
+                            print("Successfully reached ReferenceUSA!")
+                            return
+                            
+                        # Check if anything has changed in the URL - if yes, restart the loop
+                        if self.browser.driver.current_url.lower() != current_url:
+                            print("URL changed, continuing with navigation...")
+                            break
+                    except Exception as e:
+                        print(f"Error clicking element: {str(e)}")
+                        continue
+            
+            # If no automatic navigation available, ask for manual help
+            print("No automatic navigation path found.")
+            print("Please navigate manually to ReferenceUSA/Data-Axle.")
+            print("Current page title: ", self.browser.driver.title)
+            print("Current URL: ", self.browser.driver.current_url)
+            print("Press Enter when you reach ReferenceUSA (or if you need assistance).")
+            input()
+            
+            # After manual navigation, check if we're on a ReferenceUSA page
+            current_url = self.browser.driver.current_url.lower()
+            if any(indicator in current_url for indicator in reference_indicators):
+                print(f"Successfully reached ReferenceUSA: {current_url}")
+                return
+                
+            # If not, ask if user wants to continue or try again
+            print("It doesn't appear that we've reached a ReferenceUSA page yet.")
+            choice = input("Continue with the current page anyway? (y/n): ").lower().strip()
+            if choice == 'y' or choice == 'yes' or choice == '':
+                print("Continuing with current page...")
+                return
+            
+            # Check all tabs again in case the user switched tabs manually
+            print("Checking all tabs again...")
+            all_handles = self.browser.get_window_handles()
+            for handle in all_handles:
+                try:
+                    self.browser.switch_to_window(handle)
+                    current_url = self.browser.driver.current_url.lower()
+                    if any(indicator in current_url for indicator in reference_indicators):
+                        print(f"Found ReferenceUSA in tab: {current_url}")
+                        return
+                except Exception as e:
+                    print(f"Error checking tab: {str(e)}")
+            
+            # If we've reached the maximum redirects, ask the user what to do
+            if redirects >= max_redirects:
+                print(f"Maximum redirects ({max_redirects}) reached.")
+                print("Current URL:", self.browser.driver.current_url)
+                print("Current page title:", self.browser.driver.title)
+                choice = input("Continue with the current page? (y/n): ").lower().strip()
+                if choice == 'y' or choice == 'yes' or choice == '':
+                    return
+                else:
+                    # Try one more time with manual navigation
+                    print("Please navigate manually to ReferenceUSA/Data-Axle and press Enter when done.")
+                    input()
+                    return
