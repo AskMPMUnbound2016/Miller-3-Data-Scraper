@@ -1,141 +1,274 @@
-# Data Axle Scraper
+# Miller 3 Data Scraper
 
-A web scraping tool for retrieving business information from Data Axle (previously ReferenceUSA) through library access.
+A powerful, automated web scraper designed for extracting business data from ReferenceUSA through library authentication systems. This tool provides both manual and automated options for data collection with built-in CSV merging capabilities.
 
-## Overview
+## 🚀 Quick Start
 
-This tool automates the process of:
-1. Authenticating to Data Axle through your library credentials
-2. Navigating to the business database
-3. Setting search criteria
-4. Downloading business data in batches
-
-The scraper includes a web interface for easy configuration and control.
-
-## Requirements
-
-- Python 3.7 or higher
-- Google Chrome browser
-- Valid library card credentials for a library that offers Data Axle access
-
-## Quick Start
-
-### Windows
-1. Double-click `Quick_Start.bat`
-2. The server will start and open the web interface in your browser
-3. Configure your library credentials and search parameters
-4. Click "Run Scraper" to start
-
-### Mac
-1. Double-click `Quick_Start.command` (you may need to make it executable first with `chmod +x Quick_Start.command`)
-2. The server will start and open the web interface in your browser
-3. Configure your library credentials and search parameters
-4. Click "Run Scraper" to start
-
-### Manual Start
-1. Open a terminal or command prompt
-2. Navigate to the DataAxleScraper directory
-3. Run `python start_server.py`
-4. Open a browser and go to http://localhost:5000
-
-## Multiple Connection Options
-
-If you experience connection issues, try one of these alternatives:
-
-### Alternate Port (If port 5000 is blocked or in use)
-Run the server on a different port:
-```
-python start_server.py --port 8080
-```
-Then access at http://localhost:8080
-
-### Proxy Server (For CORS issues)
-Run the proxy server:
-```
-python proxy_server.py
-```
-Then access at http://localhost:8000
-
-### Offline Mode (No web interface)
-Run directly from command line:
-```
-python offline_mode.py --start 1 --end 10
+### 1. Run the Main Launcher
+```bash
+python start_scraper.py
 ```
 
-## Configuration
+Choose from three options:
+- **🤖 PAGINATION** - Full automation mode
+- **📋 NO PAGINATION** - Semi-automated mode  
+- **🔗 MERGE CSV FILES** - Combine downloaded files
 
-Edit the configuration through the web interface or directly modify `config/referenceusa_config.yaml`:
+### 2. System Requirements
+- Python 3.7+
+- Chrome browser installed
+- ChromeDriver (included)
+- Library access to ReferenceUSA
+
+## 📋 Features
+
+### 🤖 Automation Modes
+
+**PAGINATION MODE (Full Automation)**
+- ✅ Manual login once
+- 🤖 **Automated page navigation** - automatically goes through pages 1-10, 11-20, etc.
+- 🤖 **Automated record selection** - selects all records on each page
+- 🤖 **Automated downloading** - handles CSV format and detailed settings
+- 🤖 **Automated cleanup** - unchecks prior batch records
+- 🤖 **Process batches** - continues until all pages complete
+- 💾 **Session saving** - resume if interrupted
+
+**NO PAGINATION MODE (Semi-Automated)**
+- ✅ Manual login once
+- 👤 **Manual page navigation** - you navigate to each page manually
+- 🤖 **Automated record selection** - automatically selects records
+- 🤖 **Automated downloading** - handles CSV format and detailed settings
+- 🤖 **Automated cleanup** - unchecks prior batch records
+- 💾 **Session saving** - resume if interrupted
+
+### 🔗 CSV Merger
+- **Combine multiple files** - merge all downloaded CSV files
+- **Remove duplicates** - automatically detect and remove duplicate records
+- **Flexible selection** - choose specific files, date ranges, or record limits
+- **Source tracking** - adds source file column for traceability
+- **Smart naming** - automatic filename suggestions
+
+## 🎯 Step-by-Step Usage
+
+### Option 1: PAGINATION MODE (Recommended for Large Jobs)
+
+1. **Start the scraper:**
+   ```bash
+   python start_scraper.py
+   ```
+   Choose option **1** (🤖 PAGINATION)
+
+2. **Manual Setup (You do this once):**
+   - Browser opens to login page automatically
+   - Complete library authentication (OpenAthens, etc.)
+   - Navigate to ReferenceUSA U.S. Business database
+   - Set up your search criteria (location, industry, etc.)
+   - Click 'Search' and wait for results to load
+   - Press Enter when you see the search results page
+
+3. **Automation Takes Over:**
+   - Script automatically detects total pages
+   - Processes pages in batches of 10
+   - Downloads CSV files with proper naming
+   - Continues until all pages are complete
+   - Shows progress and saves session state
+
+### Option 2: NO PAGINATION MODE (Manual Navigation)
+
+1. **Start the scraper:**
+   ```bash
+   python start_scraper.py
+   ```
+   Choose option **2** (📋 NO PAGINATION)
+
+2. **Manual Setup (You do this once):**
+   - Same login process as above
+   - Navigate to search results page
+
+3. **Semi-Automation:**
+   - You manually navigate to each page
+   - Script automatically selects all records
+   - Script automatically downloads and saves files
+   - Script automatically unchecks prior batch records
+   - Repeat for each page range you want
+
+### Option 3: CSV MERGER
+
+1. **Start the merger:**
+   ```bash
+   python start_scraper.py
+   ```
+   Choose option **3** (🔗 MERGE CSV FILES)
+
+2. **Merge Options:**
+   - **Merge all files** - combine everything
+   - **Select specific files** - choose by number (e.g., 1,3,5-8)
+   - **Limit by record count** - merge up to X records
+   - **Date range** - merge files from specific dates
+
+## 📁 File Structure
+
+```
+Miller 3 Data Scraper/
+├── start_scraper.py           # Main launcher (START HERE)
+├── manual_process_simple.py   # Semi-automated scraper
+├── semi_automated_scraper.py  # Full pagination scraper
+├── full_automation_scraper.py # Alternative full automation
+├── csv_merger.py             # CSV file merger
+├── config/
+│   └── referenceusa_config.yaml # Configuration settings
+├── downloads/                # Your downloaded CSV files
+├── logs/                     # Session logs
+└── chromedriver             # Chrome automation driver
+```
+
+## ⚙️ Configuration
+
+Edit `config/referenceusa_config.yaml` to customize:
 
 ```yaml
-download_dir: "./downloads"
-auth_url: "https://login.openathens.net/auth/yourlibrary.org/..."
-library_credentials:
-  Your Library Name:
-    username: "YOUR_LIBRARY_CARD_NUMBER"
-    password: "YOUR_PIN"
-search_parameters:
-  # Choose ONE of the following geography filter options:
-  
-  # Option 1: State/City/County/MSA filter
-  state: "Georgia"              # Search by state only
-  # state: "Atlanta, GA"        # Search by city and state
-  # state: "Fulton County"      # Search by county
-  # state: "Atlanta-Sandy Springs-Alpharetta"  # Search by Metropolitan Statistical Area
-  
-  # Option 2: ZIP code filter
-  # zip_codes: "30339"          # Search by a single ZIP code
-  # zip_codes: "30339, 30080"   # Search by multiple ZIP codes
-  
-  include_unverified: true
-  include_closed: false
-pages_per_batch: 10
-pages_to_download: "all"
-state_file: "reference_usa_state.json"
+# Login URL (update if your library uses different proxy)
+auth_url: "http://referenceusa.com.us1.proxy.openathens.net/UsBusiness/Search/Quick/497be73bf9a94fe3aebb7eb4857b584f"
+
+# Download settings
+download_dir: "downloads"
+batch_size: 10
+max_retries: 3
+
+# Browser settings
+browser_timeout: 30
+page_load_timeout: 20
 ```
 
-## Geographic Filtering
+## 🔄 Session Management
 
-The scraper supports two types of geographic filtering:
+**Resume Interrupted Sessions:**
+- Sessions are automatically saved
+- If interrupted, restart and choose to resume
+- Script remembers where you left off
+- Continue from last completed page
 
-### 1. State/City/County/MSA Filtering
-Using the `state` parameter:
-- **State only**: `state: "California"`
-- **City and State**: `state: "Miami, FL"`
-- **County**: `state: "Orange County"`
-- **Metropolitan Statistical Area (MSA)**: `state: "Dallas-Fort Worth-Arlington"`
+**Session Files:**
+- `manual_scraper_state.json` - tracks progress
+- `logs/` - detailed session logs
 
-### 2. ZIP Code Filtering
-Using the `zip_codes` parameter:
-- **Single ZIP code**: `zip_codes: "30339"`
-- **Multiple ZIP codes**: `zip_codes: "30339, 30080, 30060"`
+## 📊 Output Files
 
-You must choose one type of filtering - either state-based OR ZIP code-based. If both are specified, the ZIP code filter will be used.
+**Naming Convention:**
+```
+SearchName_StartPage-to-EndPage_MMDDYY_HHMM.csv
+Example: Alabama_Businesses_1to10_061825_1430.csv
+```
 
-For more detailed instructions, see the `Instructions/GEOGRAPHY_FILTERS.md` file.
+**CSV Format:**
+- Detailed business records
+- All available ReferenceUSA fields
+- Source file tracking (when merged)
+- No duplicates (when using merger)
 
-## Troubleshooting
+## 🛠️ Troubleshooting
 
-### Web Interface Connection Problems
-- Make sure the server is running (check command line window)
-- Try restarting the server
-- Check if port 5000 is already in use by another application
-- Try using the proxy server option
+### Common Issues
 
-### Authentication Issues
-- Verify your library credentials are correct
-- Some libraries have specific authentication methods - you may need to manually assist with authentication the first time
-- The scraper can handle multi-tab authentication flows but may need your assistance
+**"ChromeDriver not found"**
+- Ensure `chromedriver` file is in the same folder
+- Download latest ChromeDriver if needed
 
-### Browser Automation Problems
-- Ensure Chrome is installed and up-to-date
-- The scraper uses Selenium to automate Chrome - make sure you haven't disabled automation features
-- If Chrome updates break functionality, try updating the scraper dependencies with `python install.py`
+**"Authentication failed"**
+- Verify library credentials
+- Check if VPN is required
+- Update auth_url in config file
 
-## Advanced Configuration
+**"No records selected"**
+- Page may not have loaded completely
+- Try manual selection mode
+- Check for page navigation issues
 
-### Multi-tab Authentication
-The scraper now supports authentication flows that open in new tabs.
+**"Download failed"**
+- Check download folder permissions
+- Ensure sufficient disk space
+- Verify browser download settings
 
-## License
+### Recovery Options
 
-This tool is provided for educational purposes only. Please use responsibly and in accordance with Data Axle's terms of service.
+**If script stops unexpectedly:**
+1. Restart `python start_scraper.py`
+2. Choose same mode you were using
+3. Select "Resume previous session"
+4. Continue from where you left off
+
+**If downloads are incomplete:**
+1. Use CSV Merger to combine partial files
+2. Check `downloads/` folder for all files
+3. Restart from last successful page
+
+## 🎯 Tips for Best Results
+
+### Before Starting
+- **Stable internet connection**
+- **Close unnecessary browser tabs**
+- **Ensure library access is working**
+- **Test with small page range first**
+
+### During Operation
+- **Don't close the browser manually**
+- **Let automation complete each batch**
+- **Monitor for any error messages**
+- **Save work frequently (auto-saved)**
+
+### Large Jobs
+- **Use PAGINATION mode for 100+ pages**
+- **Process in chunks if needed**
+- **Use CSV Merger to combine results**
+- **Take breaks between large batches**
+
+## 📞 Support
+
+### Before Reporting Issues
+1. Check `logs/` folder for error details
+2. Try with a small test (1-2 pages)
+3. Verify library access works manually
+4. Update ChromeDriver if needed
+
+### Session Recovery
+- All progress is automatically saved
+- Restart anytime and resume
+- Session files contain your progress
+- No work is lost on interruption
+
+## 🔐 Security & Compliance
+
+- **Uses your existing library credentials**
+- **No data stored outside your computer**
+- **Respects website rate limits**
+- **Downloads only what you have access to**
+- **Session data stored locally only**
+
+## 📈 Performance
+
+**Typical Performance:**
+- **10 pages**: 5-10 minutes
+- **50 pages**: 25-50 minutes  
+- **100+ pages**: 1-2 hours
+- **Speed varies by:** page load times, record count, network speed
+
+**Optimization:**
+- Use ethernet instead of WiFi
+- Close other applications
+- Use PAGINATION mode for large jobs
+- Process during off-peak hours
+
+---
+
+## 🚀 Getting Started Checklist
+
+- [ ] Python 3.7+ installed
+- [ ] Chrome browser installed
+- [ ] Library access to ReferenceUSA verified
+- [ ] Downloaded/extracted scraper files
+- [ ] Run `python start_scraper.py`
+- [ ] Choose your mode (PAGINATION recommended)
+- [ ] Complete one-time login setup
+- [ ] Let automation handle the rest!
+
+**Need help?** Start with a small test of 1-5 pages to familiarize yourself with the process.
