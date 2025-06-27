@@ -1,4 +1,4 @@
-# Miller 3 Data Scraper - Enhanced Version
+# Scraper - Enhanced Version
 
 ## Overview
 An advanced web scraper for Miller 3 Data with both semi-automated and fully automated modes, batch processing, and CSV merge capabilities.
